@@ -47,7 +47,8 @@ public class MainActivity extends Activity {
     static final int SURFACE = Color.parseColor("#F4F6FA");
     static final String PREFS = "siraljamal";
     static final String DEFAULT_PAGES = "["
-        + "{\"name\":\"أعمار الموردين\",\"url\":\"https://claude.ai/artifact/9u2tW218N3yiYZ8WWhKGmM\"},"
+        + "{\"name\":\"أعمار المارد\",\"url\":\"https://claude.ai/artifact/9u2tW218N3yiYZ8WWhKGmM\"},"
+        + "{\"name\":\"أعمار سر الجمال\",\"url\":\"https://claude.ai/artifact/AXJyR57xtpJ9GDvafSw9MA\"},"
         + "{\"name\":\"مشتريات المارد\",\"url\":\"https://claude.ai/artifact/8kak2EH8VNT4o2VP9jpmCa\"}"
         + "]";
 
