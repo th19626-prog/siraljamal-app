@@ -10,11 +10,20 @@
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".MainActivity" android:exported="true"
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- رابط تسجيل الدخول من ايميل Claude يفتح داخل التطبيق -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="claude.ai" android:pathPrefix="/magic-link" />
+                <data android:scheme="https" android:host="claude.ai" android:pathPrefix="/login" />
+                <data android:scheme="https" android:host="claude.ai" android:pathPrefix="/artifact" />
             </intent-filter>
         </activity>
         <receiver android:name=".Notifier" android:exported="false">

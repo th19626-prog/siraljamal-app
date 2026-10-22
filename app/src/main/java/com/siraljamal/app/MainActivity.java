@@ -193,7 +193,7 @@ public class MainActivity extends Activity {
         setContentView(root);
         buildTabs();
         watchNetwork();
-        if (b != null) web.restoreState(b); else openCurrent();
+        if (!handleLink(getIntent())) { if (b != null) web.restoreState(b); else openCurrent(); }
         Notifier.createChannel(this);
         if (android.os.Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != android.content.pm.PackageManager.PERMISSION_GRANTED)
             requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 1);
@@ -341,10 +341,24 @@ public class MainActivity extends Activity {
         return b;
     }
 
+    boolean handleLink(Intent i) {
+        if (i == null || i.getData() == null) return false;
+        Uri u = i.getData();
+        if (!"claude.ai".equals(u.getHost())) return false;
+        web.loadUrl(u.toString());
+        return true;
+    }
+
+    @Override protected void onNewIntent(Intent i) {
+        super.onNewIntent(i);
+        setIntent(i);
+        handleLink(i);
+    }
+
     void googleHelp() {
         new AlertDialog.Builder(this)
             .setTitle("تسجيل الدخول")
-            .setMessage("جوجل ما يسمح بزر «Continue with Google» داخل التطبيقات.\n\nسجّل بهالطريقة مرة وحدة بس:\n١. انزل تحت واكتب ايميلك بخانة الإيميل (نفس ايميل حسابك بـ Claude).\n٢. اضغط «Continue with email».\n٣. يوصلك ايميل بيه رمز تحقق؛ انسخ الرمز واكتبه هنا.\n\nبعدها يبقى التطبيق مسجّل دخول.")
+            .setMessage("جوجل ما يسمح بزر «Continue with Google» داخل التطبيقات.\n\nسجّل بهالطريقة مرة وحدة بس:\n١. انزل تحت واكتب ايميلك بخانة الإيميل (نفس ايميل حسابك بـ Claude).\n٢. اضغط «Continue with email».\n٣. افتح الإيميل اللي يوصلك من Claude واضغط رابط الدخول، واختار «سر الجمال - الوكالات» لما يسألك تفتحه بأي تطبيق.\n   (إذا الإيميل بيه رمز، تكدر بدل ذلك تكتب الرمز هنا.)\n\nبعدها يبقى التطبيق مسجّل دخول.")
             .setPositiveButton("تمام", null)
             .show();
     }
@@ -372,13 +386,15 @@ public class MainActivity extends Activity {
             "📄 إدارة الصفحات (إضافة / حذف)",
             (on ? "🔔 الإشعار اليومي: مفعّل" : "🔕 الإشعار اليومي: متوقف") + " – اضغط للتغيير",
             "⏰ وقت الإشعار: " + hour + ":00 (أيام الدوام)",
-            "🧪 تجربة إشعار الآن"
+            "🧪 تجربة إشعار الآن",
+            "🔑 مساعدة تسجيل الدخول"
         };
         new AlertDialog.Builder(this).setTitle("الإعدادات").setItems(items, (d, w) -> {
             if (w == 0) managePages();
             else if (w == 1) { sp.edit().putBoolean("notify", !on).apply(); Notifier.schedule(this); android.widget.Toast.makeText(this, !on ? "تم تفعيل الإشعار اليومي" : "تم إيقاف الإشعار اليومي", android.widget.Toast.LENGTH_SHORT).show(); }
             else if (w == 2) pickHour();
-            else Notifier.show(this, "سر الجمال - الوكالات", "هكذا يظهر إشعار تحديث الصفحات 👌");
+            else if (w == 3) Notifier.show(this, "سر الجمال - الوكالات", "هكذا يظهر إشعار تحديث الصفحات 👌");
+            else googleHelp();
         }).setNegativeButton("إغلاق", null).show();
     }
 
