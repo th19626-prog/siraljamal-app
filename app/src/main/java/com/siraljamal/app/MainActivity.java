@@ -61,6 +61,9 @@ public class MainActivity extends Activity {
     ProgressBar progress;
     TextView banner;
     TextView subtitle;
+    LinearLayout searchBar;
+    EditText searchBox;
+    TextView searchCount;
     LinearLayout tabs;
     ConnectivityManager cm;
     ConnectivityManager.NetworkCallback netCb;
@@ -111,8 +114,9 @@ public class MainActivity extends Activity {
         titles.addView(title);
         titles.addView(subtitle);
         header.addView(titles, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        header.addView(headerButton("🔍", v -> toggleSearch()));
         header.addView(headerButton("⟳", v -> { swipe.setRefreshing(true); web.reload(); }));
-        header.addView(headerButton("⚙", v -> managePages()));
+        header.addView(headerButton("⚙", v -> settingsMenu()));
         root.addView(header);
 
         // tabs
@@ -124,6 +128,39 @@ public class MainActivity extends Activity {
         tabs.setPadding(dp(12), dp(10), dp(12), dp(10));
         hs.addView(tabs);
         root.addView(hs);
+
+        // search bar (find in page)
+        searchBar = new LinearLayout(this);
+        searchBar.setGravity(Gravity.CENTER_VERTICAL);
+        searchBar.setBackgroundColor(Color.WHITE);
+        searchBar.setPadding(dp(12), dp(6), dp(6), dp(6));
+        searchBar.setVisibility(View.GONE);
+        searchBox = new EditText(this);
+        searchBox.setHint("ابحث في الصفحة… (مورد، رقم قائمة، مبلغ)");
+        searchBox.setSingleLine(true);
+        searchBox.setTextSize(15);
+        searchBox.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH);
+        android.graphics.drawable.GradientDrawable sbg = new android.graphics.drawable.GradientDrawable();
+        sbg.setCornerRadius(dp(18)); sbg.setColor(SURFACE); sbg.setStroke(dp(1), Color.parseColor("#D5DCE6"));
+        searchBox.setBackground(sbg);
+        searchBox.setPadding(dp(14), dp(8), dp(14), dp(8));
+        searchBox.addTextChangedListener(new android.text.TextWatcher() {
+            public void beforeTextChanged(CharSequence c, int a, int b, int d) {}
+            public void onTextChanged(CharSequence c, int a, int b, int d) {}
+            public void afterTextChanged(android.text.Editable e) {
+                String q = e.toString().trim();
+                if (q.isEmpty()) { web.clearMatches(); searchCount.setText(""); } else web.findAllAsync(q);
+            }
+        });
+        searchCount = new TextView(this);
+        searchCount.setTextColor(Color.parseColor("#5B6B80"));
+        searchCount.setPadding(dp(8), 0, dp(4), 0);
+        searchBar.addView(searchBox, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        searchBar.addView(searchCount);
+        searchBar.addView(smallButton("▲", v -> web.findNext(false)));
+        searchBar.addView(smallButton("▼", v -> web.findNext(true)));
+        searchBar.addView(smallButton("✕", v -> toggleSearch()));
+        root.addView(searchBar);
 
         banner = new TextView(this);
         banner.setText("لا يوجد اتصال بالإنترنت – ستتحدث الصفحة تلقائياً عند عودة الاتصال");
@@ -153,6 +190,12 @@ public class MainActivity extends Activity {
         buildTabs();
         watchNetwork();
         if (b != null) web.restoreState(b); else openCurrent();
+        Notifier.createChannel(this);
+        if (android.os.Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != android.content.pm.PackageManager.PERMISSION_GRANTED)
+            requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 1);
+        Notifier.schedule(this);
+        String open = getIntent() != null ? getIntent().getStringExtra("open_page") : null;
+        if (open != null) for (int i = 0; i < pages.size(); i++) if (pages.get(i)[0].equals(open)) { current = i; buildTabs(); openCurrent(); }
     }
 
     Button headerButton(String t, View.OnClickListener l) {
@@ -176,6 +219,9 @@ public class MainActivity extends Activity {
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
+        web.setFindListener((active, count, done) -> {
+            if (done) searchCount.setText(count == 0 ? "لا نتائج" : (active + 1) + "/" + count);
+        });
         web.setWebChromeClient(new WebChromeClient() {
             @Override public void onProgressChanged(WebView v, int p) {
                 progress.setProgress(p);
@@ -192,6 +238,7 @@ public class MainActivity extends Activity {
             }
             @Override public void onPageFinished(WebView v, String url) {
                 swipe.setRefreshing(false);
+                v.animate().alpha(1f).translationX(0).setDuration(260).setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
                 subtitle.setText(pages.get(current)[0] + " · آخر تحديث " + new java.text.SimpleDateFormat("hh:mm a", new java.util.Locale("ar")).format(new java.util.Date()));
                 CookieManager.getInstance().flush();
             }
@@ -222,7 +269,15 @@ public class MainActivity extends Activity {
             bg.setColor(on ? BRAND : Color.WHITE);
             bg.setStroke(dp(1), on ? BRAND : Color.parseColor("#D5DCE6"));
             t.setBackground(bg);
-            t.setOnClickListener(v -> { current = idx; save(); buildTabs(); openCurrent(); });
+            t.setOnClickListener(v -> {
+                if (idx == current) return;
+                v.animate().scaleX(0.92f).scaleY(0.92f).setDuration(80).withEndAction(() -> v.animate().scaleX(1f).scaleY(1f).setDuration(120).start()).start();
+                final boolean fwd = idx > current;
+                web.animate().alpha(0f).translationX(dp(fwd ? -24 : 24)).setDuration(160).withEndAction(() -> {
+                    current = idx; save(); buildTabs(); openCurrent();
+                    web.setTranslationX(dp(fwd ? 24 : -24));
+                }).start();
+            });
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             lp.setMarginEnd(dp(8));
             tabs.addView(t, lp);
@@ -231,6 +286,7 @@ public class MainActivity extends Activity {
 
     void openCurrent() {
         if (pages.isEmpty()) return;
+        if (searchBar != null && searchBar.getVisibility() == View.VISIBLE) { searchBox.setText(""); }
         web.loadUrl(pages.get(current)[1]);
     }
 
@@ -264,6 +320,56 @@ public class MainActivity extends Activity {
     @Override public void onBackPressed() { if (web.canGoBack()) web.goBack(); else super.onBackPressed(); }
 
     @Override protected void onDestroy() { if (cm != null && netCb != null) cm.unregisterNetworkCallback(netCb); super.onDestroy(); }
+
+    Button smallButton(String t, View.OnClickListener l) {
+        Button b = new Button(this, null, android.R.attr.borderlessButtonStyle);
+        b.setText(t); b.setTextColor(BRAND); b.setTextSize(16); b.setMinWidth(dp(40)); b.setMinimumWidth(dp(40));
+        b.setOnClickListener(l);
+        return b;
+    }
+
+    void toggleSearch() {
+        boolean show = searchBar.getVisibility() != View.VISIBLE;
+        if (show) {
+            searchBar.setVisibility(View.VISIBLE);
+            searchBar.setAlpha(0f); searchBar.setTranslationY(-dp(12));
+            searchBar.animate().alpha(1f).translationY(0).setDuration(180).start();
+            searchBox.requestFocus();
+            ((android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE)).showSoftInput(searchBox, 0);
+        } else {
+            ((android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(searchBox.getWindowToken(), 0);
+            searchBox.setText(""); web.clearMatches();
+            searchBar.animate().alpha(0f).translationY(-dp(12)).setDuration(150).withEndAction(() -> searchBar.setVisibility(View.GONE)).start();
+        }
+    }
+
+    void settingsMenu() {
+        SharedPreferences sp = getSharedPreferences(PREFS, MODE_PRIVATE);
+        boolean on = sp.getBoolean("notify", true);
+        int hour = sp.getInt("notify_hour", 9);
+        String[] items = {
+            "📄 إدارة الصفحات (إضافة / حذف)",
+            (on ? "🔔 الإشعار اليومي: مفعّل" : "🔕 الإشعار اليومي: متوقف") + " – اضغط للتغيير",
+            "⏰ وقت الإشعار: " + hour + ":00 (أيام الدوام)",
+            "🧪 تجربة إشعار الآن"
+        };
+        new AlertDialog.Builder(this).setTitle("الإعدادات").setItems(items, (d, w) -> {
+            if (w == 0) managePages();
+            else if (w == 1) { sp.edit().putBoolean("notify", !on).apply(); Notifier.schedule(this); android.widget.Toast.makeText(this, !on ? "تم تفعيل الإشعار اليومي" : "تم إيقاف الإشعار اليومي", android.widget.Toast.LENGTH_SHORT).show(); }
+            else if (w == 2) pickHour();
+            else Notifier.show(this, "سر الجمال - الوكالات", "هكذا يظهر إشعار تحديث الصفحات 👌");
+        }).setNegativeButton("إغلاق", null).show();
+    }
+
+    void pickHour() {
+        String[] hours = new String[24];
+        for (int i = 0; i < 24; i++) hours[i] = i + ":00";
+        new AlertDialog.Builder(this).setTitle("وقت الإشعار اليومي").setItems(hours, (d, w) -> {
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putInt("notify_hour", w).putBoolean("notify", true).apply();
+            Notifier.schedule(this);
+            android.widget.Toast.makeText(this, "سيصلك الإشعار الساعة " + w + ":00 أيام الدوام", android.widget.Toast.LENGTH_SHORT).show();
+        }).show();
+    }
 
     /* ---------- pages ---------- */
     void loadPages() {
