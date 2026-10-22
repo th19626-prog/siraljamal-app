@@ -118,6 +118,7 @@ public class MainActivity extends Activity {
         titles.addView(title);
         titles.addView(subtitle);
         header.addView(titles, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        header.addView(headerButton("🖨", v -> printPage()));
         header.addView(headerButton("🔍", v -> toggleSearch()));
         header.addView(headerButton("⟳", v -> { swipe.setRefreshing(true); web.reload(); }));
         header.addView(headerButton("⚙", v -> settingsMenu()));
@@ -353,6 +354,15 @@ public class MainActivity extends Activity {
         super.onNewIntent(i);
         setIntent(i);
         handleLink(i);
+    }
+
+    void printPage() {
+        android.print.PrintManager pm = (android.print.PrintManager) getSystemService(Context.PRINT_SERVICE);
+        String name = "سر الجمال - " + (pages.isEmpty() ? "" : pages.get(current)[0]);
+        android.print.PrintAttributes attrs = new android.print.PrintAttributes.Builder()
+            .setMediaSize(android.print.PrintAttributes.MediaSize.ISO_A4.asLandscape())
+            .build();
+        pm.print(name, web.createPrintDocumentAdapter(name), attrs);
     }
 
     void googleHelp() {
