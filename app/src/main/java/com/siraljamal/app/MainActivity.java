@@ -86,7 +86,7 @@ public class MainActivity extends Activity {
             android.graphics.drawable.GradientDrawable.Orientation.RIGHT_LEFT, new int[]{BRAND, BRAND_DARK});
         header.setBackground(hbg);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(16), dp(14), dp(6), dp(14));
+        header.setPadding(dp(14), dp(12), dp(6), dp(12));
         TextView logo = new TextView(this);
         logo.setText("س");
         logo.setTextColor(BRAND_DARK);
@@ -107,10 +107,14 @@ public class MainActivity extends Activity {
         title.setTextColor(Color.WHITE);
         title.setTextSize(19);
         title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setSingleLine(true);
+        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
         subtitle = new TextView(this);
         subtitle.setText("جارِ التحميل…");
         subtitle.setTextColor(Color.parseColor("#C8D3E3"));
         subtitle.setTextSize(12);
+        subtitle.setSingleLine(true);
+        subtitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
         titles.addView(title);
         titles.addView(subtitle);
         header.addView(titles, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
@@ -198,12 +202,17 @@ public class MainActivity extends Activity {
         if (open != null) for (int i = 0; i < pages.size(); i++) if (pages.get(i)[0].equals(open)) { current = i; buildTabs(); openCurrent(); }
     }
 
-    Button headerButton(String t, View.OnClickListener l) {
-        Button btn = new Button(this, null, android.R.attr.borderlessButtonStyle);
+    TextView headerButton(String t, View.OnClickListener l) {
+        TextView btn = new TextView(this);
         btn.setText(t);
         btn.setTextColor(Color.WHITE);
-        btn.setTextSize(20);
-        btn.setMinWidth(dp(44));
+        btn.setTextSize(18);
+        btn.setGravity(Gravity.CENTER);
+        btn.setLayoutParams(new LinearLayout.LayoutParams(dp(42), dp(42)));
+        android.util.TypedValue tv = new android.util.TypedValue();
+        getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, tv, true);
+        btn.setBackgroundResource(tv.resourceId);
+        btn.setClickable(true);
         btn.setOnClickListener(l);
         return btn;
     }
@@ -232,6 +241,10 @@ public class MainActivity extends Activity {
             @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
                 Uri u = r.getUrl();
                 String host = u.getHost() == null ? "" : u.getHost();
+                if (host.equals("accounts.google.com") || host.endsWith(".google.com") && u.getPath() != null && u.getPath().contains("oauth")) {
+                    googleHelp();
+                    return true;
+                }
                 if (host.endsWith("claude.ai") || host.endsWith("anthropic.com") || host.endsWith("claudeusercontent.com")) return false;
                 try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception ignored) {}
                 return true;
@@ -326,6 +339,14 @@ public class MainActivity extends Activity {
         b.setText(t); b.setTextColor(BRAND); b.setTextSize(16); b.setMinWidth(dp(40)); b.setMinimumWidth(dp(40));
         b.setOnClickListener(l);
         return b;
+    }
+
+    void googleHelp() {
+        new AlertDialog.Builder(this)
+            .setTitle("تسجيل الدخول")
+            .setMessage("جوجل ما يسمح بزر «Continue with Google» داخل التطبيقات.\n\nسجّل بهالطريقة مرة وحدة بس:\n١. انزل تحت واكتب ايميلك بخانة الإيميل (نفس ايميل حسابك بـ Claude).\n٢. اضغط «Continue with email».\n٣. يوصلك ايميل بيه رمز تحقق؛ انسخ الرمز واكتبه هنا.\n\nبعدها يبقى التطبيق مسجّل دخول.")
+            .setPositiveButton("تمام", null)
+            .show();
     }
 
     void toggleSearch() {
