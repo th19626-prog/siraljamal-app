@@ -42,11 +42,17 @@ import java.util.List;
 
 public class MainActivity extends Activity {
     static final int BRAND = Color.parseColor("#1F3A5F");
+    static final int BRAND_DARK = Color.parseColor("#152A46");
+    static final int GOLD = Color.parseColor("#C9A227");
+    static final int SURFACE = Color.parseColor("#F4F6FA");
     static final String PREFS = "siraljamal";
     static final String DEFAULT_PAGES = "["
         + "{\"name\":\"أعمار الموردين\",\"url\":\"https://claude.ai/artifact/9u2tW218N3yiYZ8WWhKGmM\"},"
         + "{\"name\":\"مشتريات المارد\",\"url\":\"https://claude.ai/artifact/8kak2EH8VNT4o2VP9jpmCa\"}"
         + "]";
+
+    static final String OFFLINE_HTML = "<html dir='rtl'><body style='font-family:sans-serif;background:#F4F6FA;color:#1F3A5F;display:flex;align-items:center;justify-content:center;height:90vh;text-align:center'>"
+        + "<div><div style='font-size:56px'>📶</div><h2>لا يوجد اتصال بالإنترنت</h2><p style='color:#5B6B80'>ستتحدث الصفحة تلقائياً أول ما يرجع الاتصال،<br>أو اسحب الشاشة للأسفل للمحاولة.</p></div></body></html>";
 
     final List<String[]> pages = new ArrayList<>();
     int current = 0;
@@ -54,6 +60,7 @@ public class MainActivity extends Activity {
     SwipeRefreshLayout swipe;
     ProgressBar progress;
     TextView banner;
+    TextView subtitle;
     LinearLayout tabs;
     ConnectivityManager cm;
     ConnectivityManager.NetworkCallback netCb;
@@ -72,25 +79,49 @@ public class MainActivity extends Activity {
 
         // header
         LinearLayout header = new LinearLayout(this);
-        header.setBackgroundColor(BRAND);
+        android.graphics.drawable.GradientDrawable hbg = new android.graphics.drawable.GradientDrawable(
+            android.graphics.drawable.GradientDrawable.Orientation.RIGHT_LEFT, new int[]{BRAND, BRAND_DARK});
+        header.setBackground(hbg);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(16), dp(10), dp(8), dp(10));
+        header.setPadding(dp(16), dp(14), dp(6), dp(14));
+        TextView logo = new TextView(this);
+        logo.setText("س");
+        logo.setTextColor(BRAND_DARK);
+        logo.setTextSize(20);
+        logo.setTypeface(Typeface.DEFAULT_BOLD);
+        logo.setGravity(Gravity.CENTER);
+        android.graphics.drawable.GradientDrawable lbg = new android.graphics.drawable.GradientDrawable();
+        lbg.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        lbg.setColor(GOLD);
+        logo.setBackground(lbg);
+        LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(dp(40), dp(40));
+        llp.setMarginEnd(dp(12));
+        header.addView(logo, llp);
+        LinearLayout titles = new LinearLayout(this);
+        titles.setOrientation(LinearLayout.VERTICAL);
         TextView title = new TextView(this);
-        title.setText("سر الجمال");
+        title.setText("سر الجمال - الوكالات");
         title.setTextColor(Color.WHITE);
         title.setTextSize(19);
         title.setTypeface(Typeface.DEFAULT_BOLD);
-        header.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        header.addView(headerButton("⟳", v -> web.reload()));
+        subtitle = new TextView(this);
+        subtitle.setText("جارِ التحميل…");
+        subtitle.setTextColor(Color.parseColor("#C8D3E3"));
+        subtitle.setTextSize(12);
+        titles.addView(title);
+        titles.addView(subtitle);
+        header.addView(titles, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        header.addView(headerButton("⟳", v -> { swipe.setRefreshing(true); web.reload(); }));
         header.addView(headerButton("⚙", v -> managePages()));
         root.addView(header);
 
         // tabs
         HorizontalScrollView hs = new HorizontalScrollView(this);
         hs.setHorizontalScrollBarEnabled(false);
-        hs.setBackgroundColor(Color.parseColor("#F2F5F9"));
+        hs.setBackgroundColor(SURFACE);
+        hs.setElevation(dp(2));
         tabs = new LinearLayout(this);
-        tabs.setPadding(dp(8), dp(6), dp(8), dp(6));
+        tabs.setPadding(dp(12), dp(10), dp(12), dp(10));
         hs.addView(tabs);
         root.addView(hs);
 
@@ -106,10 +137,11 @@ public class MainActivity extends Activity {
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setIndeterminate(false);
         progress.setMax(100);
+        progress.setProgressTintList(android.content.res.ColorStateList.valueOf(GOLD));
         root.addView(progress, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(3)));
 
         swipe = new SwipeRefreshLayout(this);
-        swipe.setColorSchemeColors(BRAND);
+        swipe.setColorSchemeColors(BRAND, GOLD);
         web = new WebView(this);
         setupWeb();
         swipe.addView(web, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -160,10 +192,15 @@ public class MainActivity extends Activity {
             }
             @Override public void onPageFinished(WebView v, String url) {
                 swipe.setRefreshing(false);
+                subtitle.setText(pages.get(current)[0] + " · آخر تحديث " + new java.text.SimpleDateFormat("hh:mm a", new java.util.Locale("ar")).format(new java.util.Date()));
                 CookieManager.getInstance().flush();
             }
             @Override public void onReceivedError(WebView v, WebResourceRequest r, WebResourceError e) {
-                if (r.isForMainFrame()) { swipe.setRefreshing(false); banner.setVisibility(View.VISIBLE); }
+                if (r.isForMainFrame()) {
+                    swipe.setRefreshing(false);
+                    banner.setVisibility(View.VISIBLE);
+                    v.loadDataWithBaseURL(null, OFFLINE_HTML, "text/html", "utf-8", null);
+                }
             }
         });
     }
@@ -177,12 +214,13 @@ public class MainActivity extends Activity {
             t.setTextSize(15);
             t.setPadding(dp(16), dp(8), dp(16), dp(8));
             boolean on = i == current;
-            t.setTextColor(on ? Color.WHITE : BRAND);
+            t.setTextColor(on ? Color.WHITE : Color.parseColor("#3A4A60"));
             t.setTypeface(on ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
+            t.setElevation(on ? dp(3) : 0);
             android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-            bg.setCornerRadius(dp(18));
+            bg.setCornerRadius(dp(20));
             bg.setColor(on ? BRAND : Color.WHITE);
-            bg.setStroke(dp(1), BRAND);
+            bg.setStroke(dp(1), on ? BRAND : Color.parseColor("#D5DCE6"));
             t.setBackground(bg);
             t.setOnClickListener(v -> { current = idx; save(); buildTabs(); openCurrent(); });
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -200,7 +238,7 @@ public class MainActivity extends Activity {
         cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         netCb = new ConnectivityManager.NetworkCallback() {
             @Override public void onAvailable(Network n) {
-                runOnUiThread(() -> { if (banner.getVisibility() == View.VISIBLE) { banner.setVisibility(View.GONE); web.reload(); } });
+                runOnUiThread(() -> { if (banner.getVisibility() == View.VISIBLE) { banner.setVisibility(View.GONE); openCurrent(); } });
             }
             @Override public void onLost(Network n) { runOnUiThread(() -> banner.setVisibility(online() ? View.GONE : View.VISIBLE)); }
         };
